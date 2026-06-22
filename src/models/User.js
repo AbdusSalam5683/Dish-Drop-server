@@ -19,9 +19,16 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: function() {
+        return !this.googleId;
+      },
       minlength: [6, 'Password must be at least 6 characters'],
       select: false
+    },
+    googleId: {
+      type: String,
+      sparse: true,
+      unique: true,
     },
     image: {
       type: String,
@@ -58,13 +65,15 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// ==================== MIDDLEWARE ====================
-// this middleware remove needed fields from the response
+// ❌ এই middleware টি সরিয়ে দিন (যদি সমস্যা হয়)
 // userSchema.pre('save', function(next) {
+//   if (this.googleId && !this.password) {
+//     this.password = 'google_oauth_' + Math.random().toString(36).substring(2, 15);
+//   }
 //   next();
 // });
 
-// ==================== METHODS ====================
+// Methods
 userSchema.methods.isAdmin = function() {
   return this.role === 'admin';
 };
@@ -77,7 +86,6 @@ userSchema.methods.isBlockedUser = function() {
   return this.isBlocked === true;
 };
 
-// ==================== MODEL ====================
 const User = mongoose.model('User', userSchema);
 
 export default User;
