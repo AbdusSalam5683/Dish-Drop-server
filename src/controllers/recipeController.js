@@ -4,11 +4,24 @@ import Recipe from '../models/Recipe.js';
 // ==================== GET ALL RECIPES ====================
 export const getAllRecipes = async (req, res) => {
   try {
-    const { page = 1, limit = 9, category, cuisine } = req.query;
+    const { page = 1, limit = 9, category, cuisine, search } = req.query;
     
     const query = { status: 'active' };
+    
+    // Category filter
     if (category) query.category = category;
+    
+    // Cuisine filter
     if (cuisine) query.cuisineType = cuisine;
+    
+    // Search filter - recipe name, cuisine type, or category
+    if (search) {
+      query.$or = [
+        { recipeName: { $regex: search, $options: 'i' } },
+        { cuisineType: { $regex: search, $options: 'i' } },
+        { category: { $regex: search, $options: 'i' } }
+      ];
+    }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     
