@@ -9,7 +9,8 @@ import connectDB from './config/db.js';
 
 // Import routes
 import authRoutes from './routes/authRoutes.js';
-import recipeRoutes from './routes/recipeRoutes.js';  // 👈 Recipe routes যোগ করুন
+import recipeRoutes from './routes/recipeRoutes.js';  // 👈 Recipe routes 
+import adminRoutes from './routes/adminRoutes.js';
 
 // Load environment variables
 dotenv.config();
@@ -51,8 +52,11 @@ connectDB();
 // Auth routes
 app.use('/api/auth', authRoutes);
 
-// Recipe routes - 👈 এখানে যোগ করুন
+// Recipe routes 
 app.use('/api/recipes', recipeRoutes);
+
+// ==================== Routes ====================
+app.use('/api/admin', adminRoutes);
 
 // Test route
 app.get('/api/test', (req, res) => {
