@@ -8,7 +8,8 @@ import rateLimit from 'express-rate-limit';
 import connectDB from './config/db.js';
 
 // Import routes
-import authRoutes from './routes/authRoutes.js';  // This line is impotent
+import authRoutes from './routes/authRoutes.js';
+import recipeRoutes from './routes/recipeRoutes.js';  // 👈 Recipe routes যোগ করুন
 
 // Load environment variables
 dotenv.config();
@@ -46,8 +47,12 @@ app.use(cookieParser());
 connectDB();
 
 // ==================== Routes ====================
-// Auth routes - 
-app.use('/api/auth', authRoutes);  
+
+// Auth routes
+app.use('/api/auth', authRoutes);
+
+// Recipe routes - 👈 এখানে যোগ করুন
+app.use('/api/recipes', recipeRoutes);
 
 // Test route
 app.get('/api/test', (req, res) => {
@@ -73,7 +78,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler -
+// 404 handler - এইটা সবশেষে থাকতে হবে
 app.use((req, res) => {
   res.status(404).json({
     success: false,
