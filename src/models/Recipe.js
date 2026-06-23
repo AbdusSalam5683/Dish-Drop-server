@@ -56,6 +56,12 @@ const recipeSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    // 👇 এই field যোগ করুন - Like tracking এর জন্য
+    likedBy: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: 'User',
+      default: []
+    },
     isFeatured: {
       type: Boolean,
       default: false

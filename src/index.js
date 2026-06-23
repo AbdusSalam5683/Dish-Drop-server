@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import connectDB from './config/db.js';
+import userRoutes from './routes/userRoutes.js';
 
 // ==================== IMPORT ROUTES ====================
 import authRoutes from './routes/authRoutes.js';
@@ -65,6 +66,9 @@ app.use('/api/reports', reportRoutes);
 
 // Admin routes
 app.use('/api/admin', adminRoutes);
+
+// ==================== Routes ====================
+app.use('/api/users', userRoutes);
 
 // ==================== TEST ROUTES ====================
 

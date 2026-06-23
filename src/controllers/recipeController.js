@@ -140,7 +140,6 @@ export const createRecipe = async (req, res) => {
       instructions
     } = req.body;
 
-    // Check if user is premium or recipe count limit
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({
@@ -160,7 +159,6 @@ export const createRecipe = async (req, res) => {
       }
     }
 
-    // Process ingredients and instructions (they come as arrays from client)
     let processedIngredients = [];
     let processedInstructions = [];
 
@@ -203,11 +201,11 @@ export const createRecipe = async (req, res) => {
       authorName: user.name,
       authorEmail: user.email,
       likesCount: 0,
+      likedBy: [], // 👇 Initialize empty array
       isFeatured: false,
       status: 'active'
     });
 
-    // Update user's recipe count
     await User.findByIdAndUpdate(user._id, { $inc: { recipeCount: 1 } });
 
     console.log('✅ Recipe created successfully:', recipe._id);
@@ -273,7 +271,6 @@ export const updateRecipe = async (req, res) => {
       });
     }
 
-    // Check if user is the author
     if (recipe.authorId.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
@@ -334,7 +331,6 @@ export const deleteRecipe = async (req, res) => {
       });
     }
 
-    // Check if user is the author
     if (recipe.authorId.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
@@ -342,11 +338,9 @@ export const deleteRecipe = async (req, res) => {
       });
     }
 
-    // Soft delete
     recipe.status = 'removed';
     await recipe.save();
 
-    // Decrease user's recipe count
     await User.findByIdAndUpdate(req.user.id, { $inc: { recipeCount: -1 } });
 
     res.status(200).json({
@@ -367,6 +361,10 @@ export const deleteRecipe = async (req, res) => {
 export const toggleLike = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.id;
+
+    console.log('🔍 Toggle like for recipe:', id);
+    console.log('👤 User:', userId);
 
     const recipe = await Recipe.findById(id);
     if (!recipe) {
@@ -377,21 +375,29 @@ export const toggleLike = async (req, res) => {
     }
 
     // Check if user already liked
-    const userLiked = recipe.likedBy?.includes(req.user.id);
-    
+    const userLiked = recipe.likedBy?.includes(userId);
+    console.log('📊 User liked before:', userLiked);
+    console.log('📊 Current likesCount:', recipe.likesCount);
+    console.log('📊 likedBy array length:', recipe.likedBy?.length || 0);
+
     if (userLiked) {
       // Unlike
       recipe.likesCount = Math.max(0, recipe.likesCount - 1);
       recipe.likedBy = recipe.likedBy.filter(
-        userId => userId.toString() !== req.user.id
+        uid => uid.toString() !== userId
       );
+      console.log('👎 Unliked recipe');
     } else {
       // Like
       recipe.likesCount = (recipe.likesCount || 0) + 1;
-      recipe.likedBy = [...(recipe.likedBy || []), req.user.id];
+      recipe.likedBy = [...(recipe.likedBy || []), userId];
+      console.log('👍 Liked recipe');
     }
 
     await recipe.save();
+
+    console.log('📊 New likesCount:', recipe.likesCount);
+    console.log('📊 New likedBy length:', recipe.likedBy?.length || 0);
 
     res.status(200).json({
       success: true,
@@ -401,7 +407,7 @@ export const toggleLike = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Toggle Like Error:', error);
+    console.error('❌ Toggle Like Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to toggle like'

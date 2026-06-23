@@ -8,22 +8,43 @@ export const getUserStats = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const [totalRecipes, totalFavorites, totalLikesReceived] = await Promise.all([
-      Recipe.countDocuments({ authorId: userId, status: 'active' }),
-      Favorite.countDocuments({ userId }),
-      Recipe.aggregate([
-        { $match: { authorId: userId, status: 'active' } },
-        { $group: { _id: null, total: { $sum: '$likesCount' } } }
-      ])
+    // Count total recipes
+    const totalRecipes = await Recipe.countDocuments({ 
+      authorId: userId, 
+      status: 'active' 
+    });
+
+    // Count total favorites
+    const totalFavorites = await Favorite.countDocuments({ userId });
+
+    // Calculate total likes received on user's recipes
+    const likesAggregation = await Recipe.aggregate([
+      { 
+        $match: { 
+          authorId: userId, 
+          status: 'active' 
+        } 
+      },
+      { 
+        $group: { 
+          _id: null, 
+          totalLikes: { $sum: '$likesCount' } 
+        } 
+      }
     ]);
+
+    const totalLikesReceived = likesAggregation[0]?.totalLikes || 0;
+
+    // Count purchased recipes (coming soon)
+    const totalPurchased = 0; // Will be implemented with payment system
 
     res.status(200).json({
       success: true,
       stats: {
         totalRecipes,
         totalFavorites,
-        totalLikesReceived: totalLikesReceived[0]?.total || 0,
-        totalPurchased: 0 // Will be implemented with payment system
+        totalLikesReceived,
+        totalPurchased
       }
     });
 
