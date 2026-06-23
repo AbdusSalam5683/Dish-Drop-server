@@ -2,6 +2,7 @@
 import User from '../models/User.js';
 import Recipe from '../models/Recipe.js';
 import Favorite from '../models/Favorite.js';
+import Payment from '../models/Payment.js';
 
 // ==================== GET USER STATS ====================
 export const getUserStats = async (req, res) => {
@@ -35,8 +36,17 @@ export const getUserStats = async (req, res) => {
 
     const totalLikesReceived = likesAggregation[0]?.totalLikes || 0;
 
-    // Count purchased recipes (coming soon)
-    const totalPurchased = 0; // Will be implemented with payment system
+    // ✅ Count purchased recipes (from Payment model)
+    const totalPurchased = await Payment.countDocuments({
+      userId: userId,
+      paymentStatus: 'completed'
+    });
+
+    console.log('📊 Stats for user:', userId);
+    console.log('📝 Total Recipes:', totalRecipes);
+    console.log('⭐ Total Favorites:', totalFavorites);
+    console.log('❤️ Total Likes Received:', totalLikesReceived);
+    console.log('🛒 Total Purchased:', totalPurchased);
 
     res.status(200).json({
       success: true,
@@ -49,7 +59,7 @@ export const getUserStats = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get User Stats Error:', error);
+    console.error('❌ Get User Stats Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to fetch stats'
@@ -83,7 +93,7 @@ export const updateProfile = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Update Profile Error:', error);
+    console.error('❌ Update Profile Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to update profile'
