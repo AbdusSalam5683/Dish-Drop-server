@@ -7,18 +7,20 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import connectDB from './config/db.js';
 
-// Import routes
+// ==================== IMPORT ROUTES ====================
 import authRoutes from './routes/authRoutes.js';
-import recipeRoutes from './routes/recipeRoutes.js';  // 👈 Recipe routes 
+import recipeRoutes from './routes/recipeRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import favoriteRoutes from './routes/favoriteRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
 
-// Load environment variables
+// ==================== LOAD ENV ====================
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ==================== Middleware ====================
+// ==================== MIDDLEWARE ====================
 
 // Security middleware
 app.use(helmet());
@@ -44,19 +46,27 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// ==================== Database Connection ====================
+// ==================== DATABASE CONNECTION ====================
 connectDB();
 
-// ==================== Routes ====================
+// ==================== ROUTES ====================
 
 // Auth routes
 app.use('/api/auth', authRoutes);
 
-// Recipe routes 
+// Recipe routes
 app.use('/api/recipes', recipeRoutes);
 
-// ==================== Routes ====================
+// Favorite routes
+app.use('/api/favorites', favoriteRoutes);
+
+// Report routes
+app.use('/api/reports', reportRoutes);
+
+// Admin routes
 app.use('/api/admin', adminRoutes);
+
+// ==================== TEST ROUTES ====================
 
 // Test route
 app.get('/api/test', (req, res) => {
@@ -65,16 +75,18 @@ app.get('/api/test', (req, res) => {
 
 // Health check
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
+  res.status(200).json({
+    status: 'OK',
     message: 'Server is healthy',
     timestamp: new Date().toISOString()
   });
 });
 
-// ==================== Error Handling ====================
+// ==================== ERROR HANDLING ====================
+
+// Global error handler
 app.use((err, req, res, next) => {
-  console.error('Error:', err.message);
+  console.error('❌ Error:', err.message);
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Internal Server Error',
@@ -82,7 +94,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler - এইটা সবশেষে থাকতে হবে
+// 404 handler - MUST BE LAST
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -90,7 +102,7 @@ app.use((req, res) => {
   });
 });
 
-// ==================== Start Server ====================
+// ==================== START SERVER ====================
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 http://localhost:${PORT}`);
