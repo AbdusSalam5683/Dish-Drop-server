@@ -14,6 +14,7 @@ import recipeRoutes from './routes/recipeRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import favoriteRoutes from './routes/favoriteRoutes.js';
 import reportRoutes from './routes/reportRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
 
 // ==================== LOAD ENV ====================
 dotenv.config();
@@ -42,7 +43,11 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Body parsers
+// ==================== WEBHOOK - RAW BODY (MUST BE BEFORE express.json) ====================
+// Webhook needs raw body for signature verification
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
+
+// ==================== BODY PARSERS (for other routes) ====================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -64,10 +69,13 @@ app.use('/api/favorites', favoriteRoutes);
 // Report routes
 app.use('/api/reports', reportRoutes);
 
+// Payment routes
+app.use('/api/payments', paymentRoutes);
+
 // Admin routes
 app.use('/api/admin', adminRoutes);
 
-// ==================== Routes ====================
+// User routes
 app.use('/api/users', userRoutes);
 
 // ==================== TEST ROUTES ====================
