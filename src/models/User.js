@@ -65,15 +65,17 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// ❌ এই middleware টি সরিয়ে দিন (যদি সমস্যা হয়)
-// userSchema.pre('save', function(next) {
-//   if (this.googleId && !this.password) {
-//     this.password = 'google_oauth_' + Math.random().toString(36).substring(2, 15);
-//   }
-//   next();
-// });
+// ==================== PRE-SAVE MIDDLEWARE ====================
+// ✅ Google ইউজারের জন্য ডামি পাসওয়ার্ড তৈরি করে
+userSchema.pre('save', function(next) {
+  // যদি googleId থাকে এবং password না থাকে, তাহলে ডামি পাসওয়ার্ড তৈরি করো
+  if (this.googleId && !this.password) {
+    this.password = 'google_oauth_' + Math.random().toString(36).substring(2, 15);
+  }
+  next();
+});
 
-// Methods
+// ==================== METHODS ====================
 userSchema.methods.isAdmin = function() {
   return this.role === 'admin';
 };
