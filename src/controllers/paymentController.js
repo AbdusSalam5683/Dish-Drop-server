@@ -11,6 +11,8 @@ export const createPremiumCheckout = async (req, res) => {
     const userId = req.user.id;
     const userEmail = req.user.email;
 
+    console.log('💳 Creating premium checkout for:', userEmail);
+
     // Check if user already premium
     if (req.user.isPremium) {
       return res.status(400).json({
@@ -37,6 +39,8 @@ export const createPremiumCheckout = async (req, res) => {
       }
     });
 
+    console.log('✅ Checkout session created:', session.id);
+
     res.status(200).json({
       success: true,
       sessionId: session.id,
@@ -44,7 +48,7 @@ export const createPremiumCheckout = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Create Premium Checkout Error:', error);
+    console.error('❌ Create Premium Checkout Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to create checkout session'
@@ -58,6 +62,9 @@ export const createRecipePurchaseCheckout = async (req, res) => {
     const { recipeId } = req.params;
     const userId = req.user.id;
     const userEmail = req.user.email;
+
+    console.log('🛒 Creating recipe purchase checkout for:', userEmail);
+    console.log('📝 Recipe ID:', recipeId);
 
     const recipe = await Recipe.findById(recipeId);
     if (!recipe) {
@@ -108,6 +115,8 @@ export const createRecipePurchaseCheckout = async (req, res) => {
       }
     });
 
+    console.log('✅ Recipe checkout session created:', session.id);
+
     res.status(200).json({
       success: true,
       sessionId: session.id,
@@ -115,7 +124,7 @@ export const createRecipePurchaseCheckout = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Create Recipe Purchase Checkout Error:', error);
+    console.error('❌ Create Recipe Purchase Checkout Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to create checkout session'
@@ -133,9 +142,11 @@ export const handleWebhook = async (req, res) => {
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
   } catch (error) {
-    console.error('Webhook signature verification failed:', error);
+    console.error('❌ Webhook signature verification failed:', error);
     return res.status(400).send(`Webhook Error: ${error.message}`);
   }
+
+  console.log('📥 Webhook event received:', event.type);
 
   try {
     // Handle the event
@@ -151,13 +162,13 @@ export const handleWebhook = async (req, res) => {
         break;
       }
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        console.log(`⚠️ Unhandled event type: ${event.type}`);
     }
 
     res.status(200).json({ received: true });
 
   } catch (error) {
-    console.error('Webhook processing error:', error);
+    console.error('❌ Webhook processing error:', error);
     res.status(500).json({
       success: false,
       message: error.message
@@ -169,12 +180,18 @@ export const handleWebhook = async (req, res) => {
 const handleCheckoutSessionCompleted = async (session) => {
   const { userId, recipeId, type } = session.metadata;
 
+  console.log('📥 Webhook received: checkout.session.completed');
+  console.log('📋 Session metadata:', { userId, recipeId, type });
+  console.log('💰 Amount:', session.amount_total / 100);
+  console.log('📧 Customer:', session.customer_email);
+
   if (type === 'premium') {
     // Update user to premium
-    await User.findByIdAndUpdate(userId, {
+    const user = await User.findByIdAndUpdate(userId, {
       isPremium: true,
       premiumSince: new Date()
     });
+    console.log('✅ User updated to premium:', user?.email);
 
     await Payment.create({
       userEmail: session.customer_email,
@@ -184,8 +201,7 @@ const handleCheckoutSessionCompleted = async (session) => {
       paymentStatus: 'completed',
       paidAt: new Date()
     });
-
-    console.log(`✅ User ${userId} upgraded to premium`);
+    console.log('✅ Premium payment saved');
 
   } else if (type === 'recipe_purchase') {
     await Payment.create({
@@ -197,7 +213,6 @@ const handleCheckoutSessionCompleted = async (session) => {
       paymentStatus: 'completed',
       paidAt: new Date()
     });
-
     console.log(`✅ User ${userId} purchased recipe ${recipeId}`);
   }
 };
@@ -225,13 +240,15 @@ export const getUserPurchases = async (req, res) => {
     .populate('recipeId', 'recipeName recipeImage authorName')
     .sort({ paidAt: -1 });
 
+    console.log(`📊 User ${req.user.id} has ${purchases.length} purchases`);
+
     res.status(200).json({
       success: true,
       purchases
     });
 
   } catch (error) {
-    console.error('Get User Purchases Error:', error);
+    console.error('❌ Get User Purchases Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to fetch purchases'
@@ -243,6 +260,8 @@ export const getUserPurchases = async (req, res) => {
 export const getPremiumStatus = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
+    console.log(`⭐ Premium status for ${user.email}: ${user?.isPremium || false}`);
+    
     res.status(200).json({
       success: true,
       isPremium: user?.isPremium || false,
@@ -250,7 +269,7 @@ export const getPremiumStatus = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get Premium Status Error:', error);
+    console.error('❌ Get Premium Status Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to get premium status'

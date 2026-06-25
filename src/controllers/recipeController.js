@@ -41,7 +41,7 @@ export const getAllRecipes = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get All Recipes Error:', error);
+    console.error('❌ Get All Recipes Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to fetch recipes'
@@ -65,7 +65,7 @@ export const getFeaturedRecipes = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get Featured Recipes Error:', error);
+    console.error('❌ Get Featured Recipes Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to fetch featured recipes'
@@ -87,7 +87,7 @@ export const getPopularRecipes = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get Popular Recipes Error:', error);
+    console.error('❌ Get Popular Recipes Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to fetch popular recipes'
@@ -116,7 +116,7 @@ export const getRecipeById = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get Recipe By ID Error:', error);
+    console.error('❌ Get Recipe By ID Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to fetch recipe'
@@ -201,7 +201,7 @@ export const createRecipe = async (req, res) => {
       authorName: user.name,
       authorEmail: user.email,
       likesCount: 0,
-      likedBy: [], // 👇 Initialize empty array
+      likedBy: [],
       isFeatured: false,
       status: 'active'
     });
@@ -240,7 +240,7 @@ export const getMyRecipes = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get My Recipes Error:', error);
+    console.error('❌ Get My Recipes Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to fetch recipes'
@@ -252,6 +252,10 @@ export const getMyRecipes = async (req, res) => {
 export const updateRecipe = async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('📝 Update recipe request for ID:', id);
+    console.log('👤 User:', req.user.id);
+    console.log('📦 Update data:', req.body);
+
     const {
       recipeName,
       recipeImage,
@@ -265,25 +269,32 @@ export const updateRecipe = async (req, res) => {
 
     const recipe = await Recipe.findById(id);
     if (!recipe) {
+      console.log('❌ Recipe not found');
       return res.status(404).json({
         success: false,
         message: 'Recipe not found'
       });
     }
 
-    if (recipe.authorId.toString() !== req.user.id) {
+    // Check if user is the author OR admin
+    const isAuthor = recipe.authorId.toString() === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isAuthor && !isAdmin) {
+      console.log('❌ Unauthorized: User is not author or admin');
       return res.status(403).json({
         success: false,
         message: 'You are not authorized to update this recipe'
       });
     }
 
-    recipe.recipeName = recipeName || recipe.recipeName;
-    recipe.recipeImage = recipeImage || recipe.recipeImage;
-    recipe.category = category || recipe.category;
-    recipe.cuisineType = cuisineType || recipe.cuisineType;
-    recipe.difficultyLevel = difficultyLevel || recipe.difficultyLevel;
-    recipe.preparationTime = preparationTime || recipe.preparationTime;
+    // Update fields
+    if (recipeName) recipe.recipeName = recipeName;
+    if (recipeImage) recipe.recipeImage = recipeImage;
+    if (category) recipe.category = category;
+    if (cuisineType) recipe.cuisineType = cuisineType;
+    if (difficultyLevel) recipe.difficultyLevel = difficultyLevel;
+    if (preparationTime) recipe.preparationTime = preparationTime;
     
     if (ingredients) {
       if (Array.isArray(ingredients)) {
@@ -302,6 +313,7 @@ export const updateRecipe = async (req, res) => {
     }
 
     await recipe.save();
+    console.log('✅ Recipe updated successfully:', recipe._id);
 
     res.status(200).json({
       success: true,
@@ -310,7 +322,7 @@ export const updateRecipe = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Update Recipe Error:', error);
+    console.error('❌ Update Recipe Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to update recipe'
@@ -322,26 +334,43 @@ export const updateRecipe = async (req, res) => {
 export const deleteRecipe = async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('🗑️ Delete recipe request for ID:', id);
+    console.log('👤 User:', req.user.id);
 
     const recipe = await Recipe.findById(id);
     if (!recipe) {
+      console.log('❌ Recipe not found');
       return res.status(404).json({
         success: false,
         message: 'Recipe not found'
       });
     }
 
-    if (recipe.authorId.toString() !== req.user.id) {
+    console.log('📝 Recipe found:', recipe.recipeName);
+    console.log('👤 Recipe author:', recipe.authorId.toString());
+
+    // Check if user is the author OR admin
+    const isAuthor = recipe.authorId.toString() === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isAuthor && !isAdmin) {
+      console.log('❌ Unauthorized: User is not author or admin');
       return res.status(403).json({
         success: false,
         message: 'You are not authorized to delete this recipe'
       });
     }
 
+    // Soft delete
     recipe.status = 'removed';
     await recipe.save();
+    console.log('✅ Recipe status updated to removed');
 
-    await User.findByIdAndUpdate(req.user.id, { $inc: { recipeCount: -1 } });
+    // Decrease user's recipe count if author
+    if (isAuthor) {
+      await User.findByIdAndUpdate(req.user.id, { $inc: { recipeCount: -1 } });
+      console.log('✅ User recipe count decreased');
+    }
 
     res.status(200).json({
       success: true,
@@ -349,7 +378,7 @@ export const deleteRecipe = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Delete Recipe Error:', error);
+    console.error('❌ Delete Recipe Error:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to delete recipe'
