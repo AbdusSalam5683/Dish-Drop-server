@@ -149,7 +149,6 @@ export const handleWebhook = async (req, res) => {
   console.log('📥 Webhook event received:', event.type);
 
   try {
-    // Handle the event
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
@@ -193,18 +192,21 @@ const handleCheckoutSessionCompleted = async (session) => {
     });
     console.log('✅ User updated to premium:', user?.email);
 
+    // ✅ Premium payment - NO recipeId
     await Payment.create({
       userEmail: session.customer_email,
       userId: userId,
       amount: session.amount_total / 100,
       transactionId: session.id,
       paymentStatus: 'completed',
-      paidAt: new Date()
+      paidAt: new Date(),
+      recipeId: null // 👈 Important: Premium has no recipe
     });
     console.log('✅ Premium payment saved');
 
   } else if (type === 'recipe_purchase') {
-    await Payment.create({
+    // ✅ Recipe purchase - WITH recipeId
+    const payment = await Payment.create({
       userEmail: session.customer_email,
       userId: userId,
       recipeId: recipeId,
@@ -214,6 +216,9 @@ const handleCheckoutSessionCompleted = async (session) => {
       paidAt: new Date()
     });
     console.log(`✅ User ${userId} purchased recipe ${recipeId}`);
+    
+    // Populate recipe details for response
+    await payment.populate('recipeId', 'recipeName recipeImage authorName');
   }
 };
 
@@ -240,11 +245,34 @@ export const getUserPurchases = async (req, res) => {
     .populate('recipeId', 'recipeName recipeImage authorName')
     .sort({ paidAt: -1 });
 
-    console.log(`📊 User ${req.user.id} has ${purchases.length} purchases`);
+    // ✅ Format purchases with proper recipe data
+    const formattedPurchases = purchases.map(purchase => {
+      const obj = purchase.toObject();
+      
+      // If recipeId is populated and exists
+      if (obj.recipeId && obj.recipeId._id) {
+        return {
+          ...obj,
+          recipeName: obj.recipeId.recipeName || 'Unknown Recipe',
+          recipeImage: obj.recipeId.recipeImage || '/placeholder.jpg',
+          authorName: obj.recipeId.authorName || 'Unknown'
+        };
+      }
+      
+      // If recipeId is null (premium purchase) or recipe deleted
+      return {
+        ...obj,
+        recipeName: obj.recipeId === null ? 'Premium Membership' : 'Unknown Recipe',
+        recipeImage: obj.recipeId === null ? '/premium-badge.png' : '/placeholder.jpg',
+        authorName: obj.recipeId === null ? 'DishDrop' : 'Unknown'
+      };
+    });
+
+    console.log(`📊 User ${req.user.id} has ${formattedPurchases.length} purchases`);
 
     res.status(200).json({
       success: true,
-      purchases
+      purchases: formattedPurchases
     });
 
   } catch (error) {
@@ -260,7 +288,7 @@ export const getUserPurchases = async (req, res) => {
 export const getPremiumStatus = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    console.log(`⭐ Premium status for ${user.email}: ${user?.isPremium || false}`);
+    console.log(`⭐ Premium status for ${user?.email}: ${user?.isPremium || false}`);
     
     res.status(200).json({
       success: true,
