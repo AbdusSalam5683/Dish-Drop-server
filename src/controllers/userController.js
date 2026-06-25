@@ -18,25 +18,21 @@ export const getUserStats = async (req, res) => {
     // Count total favorites
     const totalFavorites = await Favorite.countDocuments({ userId });
 
-    // Calculate total likes received on user's recipes
-    const likesAggregation = await Recipe.aggregate([
-      { 
-        $match: { 
-          authorId: userId, 
-          status: 'active' 
-        } 
-      },
-      { 
-        $group: { 
-          _id: null, 
-          totalLikes: { $sum: '$likesCount' } 
-        } 
-      }
-    ]);
+    // ✅ FIX: Manually calculate total likes from user's recipes
+    const userRecipes = await Recipe.find({ 
+      authorId: userId, 
+      status: 'active' 
+    }).select('likesCount');
+    
+    let totalLikesReceived = 0;
+    userRecipes.forEach(recipe => {
+      totalLikesReceived += recipe.likesCount || 0;
+    });
 
-    const totalLikesReceived = likesAggregation[0]?.totalLikes || 0;
+    console.log('📊 Manual like sum:', totalLikesReceived);
+    console.log('📊 User recipes count:', userRecipes.length);
 
-    // ✅ Count purchased recipes (from Payment model)
+    // Count purchased recipes (from Payment model)
     const totalPurchased = await Payment.countDocuments({
       userId: userId,
       paymentStatus: 'completed'
@@ -63,6 +59,61 @@ export const getUserStats = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to fetch stats'
+    });
+  }
+};
+
+// ==================== GET RECENT LIKES ====================
+export const getRecentLikes = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Find all recipes by this user
+    const recipes = await Recipe.find({ 
+      authorId: userId, 
+      status: 'active' 
+    }).select('_id recipeName recipeImage likesCount likedBy updatedAt');
+
+    // Get recent likes (users who liked this author's recipes)
+    const recentLikes = [];
+    
+    for (const recipe of recipes) {
+      if (recipe.likedBy && recipe.likedBy.length > 0) {
+        // Get user details for each liker
+        const likers = await User.find({
+          _id: { $in: recipe.likedBy }
+        }).select('name email image');
+        
+        likers.forEach(liker => {
+          recentLikes.push({
+            recipeId: recipe._id,
+            recipeName: recipe.recipeName,
+            recipeImage: recipe.recipeImage,
+            likerName: liker.name,
+            likerImage: liker.image,
+            likerEmail: liker.email,
+            likedAt: recipe.updatedAt || new Date()
+          });
+        });
+      }
+    }
+
+    // Sort by most recent and limit to 10
+    recentLikes.sort((a, b) => new Date(b.likedAt) - new Date(a.likedAt));
+    const limitedLikes = recentLikes.slice(0, 10);
+
+    console.log(`📊 Recent likes for user ${userId}: ${limitedLikes.length} entries`);
+
+    res.status(200).json({
+      success: true,
+      likes: limitedLikes
+    });
+
+  } catch (error) {
+    console.error('❌ Get Recent Likes Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to fetch recent likes'
     });
   }
 };
