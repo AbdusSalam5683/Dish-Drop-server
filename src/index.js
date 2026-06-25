@@ -78,7 +78,7 @@ app.use('/api/admin', adminRoutes);
 // User routes
 app.use('/api/users', userRoutes);
 
-// ==================== TEST ROUTES ====================
+// ================== TEST ROUTES ====================
 
 // Test route
 app.get('/api/test', (req, res) => {
