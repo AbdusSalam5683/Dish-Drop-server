@@ -78,16 +78,23 @@ router.get('/google/callback', async (req, res) => {
     // Generate JWT token
     const token = generateToken(user);
     
-    // Set cookie with proper options
-    res.cookie('token', token, {
+    // ✅ Cookie options - Vercel-এর জন্য domain যোগ করা হয়েছে
+    const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/', // 👈 গুরুত্বপূর্ণ!
-    });
+      path: '/',
+    };
 
-    // 👇 Redirect to dashboard with token in URL (for client to store)
+    // ✅ Vercel-এ ডিপ্লয়ের জন্য domain সেট করুন
+    if (process.env.NODE_ENV === 'production') {
+      cookieOptions.domain = '.vercel.app';
+    }
+
+    res.cookie('token', token, cookieOptions);
+
+    // ✅ Redirect to dashboard with token in URL
     const redirectUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/dashboard?token=${token}`;
     res.redirect(redirectUrl);
 
